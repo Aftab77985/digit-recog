@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Handwritten Digit Recognition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+
+        .upload-area {
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #f8f9ff;
+            margin-bottom: 30px;
+        }
+
+        .upload-area:hover {
+            border-color: #764ba2;
+            background: #f0f2ff;
+            transform: scale(1.02);
+        }
+
+        .upload-area.dragover {
+            border-color: #764ba2;
+            background: #e8eaff;
+            transform: scale(1.05);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 1.2em;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .preview-section {
+            display: none;
+            margin-bottom: 30px;
+        }
+
+        .preview-container {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .preview-box {
+            text-align: center;
+        }
+
+        .preview-box h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        #imagePreview {
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            border: 3px solid #667eea;
+        }
+
+        .canvas-container {
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            background: #000;
+            padding: 5px;
+        }
+
+        #processedCanvas {
+            background: #000;
+            border-radius: 5px;
+        }
+
+        .result-section {
+            display: none;
+            text-align: center;
+        }
+
+        .predicted-digit {
+            font-size: 6em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 20px 0;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .confidence {
+            font-size: 1.5em;
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .probabilities {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .prob-item {
+            background: #f8f9ff;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .prob-item.highest {
+            border-color: #667eea;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .prob-digit {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .prob-bar-container {
+            background: #e0e0e0;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0 5px 0;
+        }
+
+        .prob-bar {
+            height: 100%;
+            background: #667eea;
+            transition: width 0.5s ease;
+        }
+
+        .prob-item.highest .prob-bar {
+            background: white;
+        }
+
+        .prob-value {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .prob-item.highest .prob-value {
+            color: white;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            display: none;
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 2px solid #c33;
+        }
+
+        .drawing-section {
+            margin-bottom: 30px;
+        }
+
+        #drawCanvas {
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            cursor: crosshair;
+            background: white;
+            touch-action: none;
+        }
+
+        .canvas-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 8px 20px rgba(108, 117, 125, 0.6);
+        }
+
+        @media (max-width: 768px) {
+            .probabilities {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+
+            .predicted-digit {
+                font-size: 4em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✍️ Handwritten Digit Recognition</h1>
+        <p class="subtitle">Upload an image or draw a digit (0-9) to see AI predictions</p>
+
+        <div class="error" id="errorMsg"></div>
+
+        <!-- Drawing Section -->
+        <div class="drawing-section" id="drawingSection">
+            <h3 style="text-align: center; margin-bottom: 15px; color: #333;">Draw a Digit</h3>
+            <div style="text-align: center;">
+                <canvas id="drawCanvas" width="280" height="280"></canvas>
+            </div>
+            <div class="canvas-controls">
+                <button class="btn btn-secondary" onclick="clearCanvas()">Clear</button>
+                <button class="btn" onclick="predictDrawing()">Predict Drawing</button>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin: 30px 0; color: #666;">
+            <strong>OR</strong>
+        </div>
+
+        <!-- Upload Section -->
+        <div class="upload-area" id="uploadArea" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">Click to upload or drag and drop</div>
+            <div class="upload-hint">PNG, JPG, or JPEG (max 10MB)</div>
+            <input type="file" id="fileInput" accept="image/*" onchange="handleFileSelect(event)">
+        </div>
+
+        <div class="preview-section" id="previewSection">
+            <h3 style="text-align: center; margin-bottom: 20px; color: #333;">Image Preview</h3>
+            <div class="preview-container">
+                <div class="preview-box">
+                    <h3>Original</h3>
+                    <img id="imagePreview" alt="Preview">
+                </div>
+                <div class="preview-box">
+                    <h3>Processed (28×28)</h3>
+                    <div class="canvas-container">
+                        <canvas id="processedCanvas" width="140" height="140"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 20px;">
+                <button class="btn" onclick="predictImage()" id="predictBtn">Predict Digit</button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p style="margin-top: 15px; color: #666;">Analyzing your image...</p>
+        </div>
+
+        <div class="result-section" id="resultSection">
+            <h2 style="margin-bottom: 20px; color: #333;">Prediction Result</h2>
+            <div class="predicted-digit" id="predictedDigit">-</div>
+            <div class="confidence" id="confidence">Confidence: -</div>
+
+            <h3 style="margin-bottom: 20px; color: #333;">All Probabilities</h3>
+            <div class="probabilities" id="probabilities"></div>
+
+            <button class="btn" onclick="resetApp()">Try Another Image</button>
+        </div>
+    </div>
+
+    <script>
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:8000';
+
+        // Drawing canvas setup
+        const drawCanvas = document.getElementById('drawCanvas');
+        const drawCtx = drawCanvas.getContext('2d');
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+
+        // Initialize drawing canvas
+        drawCtx.fillStyle = 'white';
+        drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+        drawCtx.strokeStyle = 'black';
+        drawCtx.lineWidth = 20;
+        drawCtx.lineCap = 'round';
+        drawCtx.lineJoin = 'round';
+
+        // Drawing event handlers
+        drawCanvas.addEventListener('mousedown', startDrawing);
+        drawCanvas.addEventListener('mousemove', draw);
+        drawCanvas.addEventListener('mouseup', stopDrawing);
+        drawCanvas.addEventListener('mouseout', stopDrawing);
+
+        // Touch events for mobile
+        drawCanvas.addEventListener('touchstart', handleTouch);
+        drawCanvas.addEventListener('touchmove', handleTouch);
+        drawCanvas.addEventListener('touchend', stopDrawing);
+
+        function startDrawing(e) {
+            isDrawing = true;
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            drawCtx.beginPath();
+            drawCtx.moveTo(lastX, lastY);
+            drawCtx.lineTo(e.offsetX, e.offsetY);
+            drawCtx.stroke();
+            [lastX, lastY] = [e.offsetX, e.offsetY];
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function handleTouch(e) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const rect = drawCanvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+
+            if (e.type === 'touchstart') {
+                isDrawing = true;
+                [lastX, lastY] = [x, y];
+            } else if (e.type === 'touchmove' && isDrawing) {
+                drawCtx.beginPath();
+                drawCtx.moveTo(lastX, lastY);
+                drawCtx.lineTo(x, y);
+                drawCtx.stroke();
+                [lastX, lastY] = [x, y];
+            }
+        }
+
+        function clearCanvas() {
+            drawCtx.fillStyle = 'white';
+            drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+        }
+
+        async function predictDrawing() {
+            // Convert canvas to blob
+            drawCanvas.toBlob(async (blob) => {
+                if (!blob) {
+                    showError('Failed to process drawing');
+                    return;
+                }
+
+                const file = new File([blob], 'drawing.png', { type: 'image/png' });
+                await uploadAndPredict(file);
+            });
+        }
+
+        // File upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            if (!file.type.match('image.*')) {
+                showError('Please upload an image file');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = document.getElementById('imagePreview');
+                img.src = e.target.result;
+                img.onload = () => {
+                    processImage(img);
+                    document.getElementById('previewSection').style.display = 'block';
+                };
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function processImage(img) {
+            const canvas = document.getElementById('processedCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Create temporary canvas for 28x28 conversion
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 28;
+            tempCanvas.height = 28;
+            const tempCtx = tempCanvas.getContext('2d');
+
+            // Draw and resize to 28x28
+            tempCtx.fillStyle = 'white';
+            tempCtx.fillRect(0, 0, 28, 28);
+            tempCtx.drawImage(img, 0, 0, 28, 28);
+
+            // Scale up for display
+            ctx.imageSmoothingEnabled = false;
+            ctx.drawImage(tempCanvas, 0, 0, 140, 140);
+        }
+
+        async function predictImage() {
+            const file = fileInput.files[0];
+            if (!file) {
+                showError('Please select an image first');
+                return;
+            }
+
+            await uploadAndPredict(file);
+        }
+
+        async function uploadAndPredict(file) {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('errorMsg').style.display = 'none';
+            document.getElementById('predictBtn').disabled = true;
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/predict`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    displayResults(result);
+                } else {
+                    showError(result.error || 'Prediction failed');
+                }
+            } catch (error) {
+                showError('Network error: ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('predictBtn').disabled = false;
+            }
+        }
+
+        function displayResults(result) {
+            document.getElementById('predictedDigit').textContent = result.predicted_digit;
+            document.getElementById('confidence').textContent =
+                `Confidence: ${(result.confidence * 100).toFixed(2)}%`;
+
+            const probContainer = document.getElementById('probabilities');
+            probContainer.innerHTML = '';
+
+            for (let i = 0; i < 10; i++) {
+                const prob = result.all_probabilities[i];
+                const isHighest = i === result.predicted_digit;
+
+                const probItem = document.createElement('div');
+                probItem.className = `prob-item ${isHighest ? 'highest' : ''}`;
+                probItem.innerHTML = `
+                    <div class="prob-digit">${i}</div>
+                    <div class="prob-bar-container">
+                        <div class="prob-bar" style="width: ${prob * 100}%"></div>
+                    </div>
+                    <div class="prob-value">${(prob * 100).toFixed(1)}%</div>
+                `;
+                probContainer.appendChild(probItem);
+            }
+
+            document.getElementById('resultSection').style.display = 'block';
+            document.getElementById('previewSection').style.display = 'none';
+            document.getElementById('drawingSection').style.display = 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function resetApp() {
+            document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('previewSection').style.display = 'none';
+            document.getElementById('drawingSection').style.display = 'block';
+            document.getElementById('errorMsg').style.display = 'none';
+            fileInput.value = '';
+            clearCanvas();
+        }
+    </script>
+</body>
+</html>
